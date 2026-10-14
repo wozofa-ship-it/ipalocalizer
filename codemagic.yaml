@@ -1,0 +1,26 @@
+workflows:
+  ios-unsigned-workflow:
+    name: iOS unsigned IPA
+    instance_type: mac_mini_m2
+    max_build_duration: 60
+    environment:
+      xcode: latest
+      vars:
+        XCODE_PROJECT: IPALocalizer.xcodeproj
+        XCODE_SCHEME: IPALocalizer
+    scripts:
+      - name: Generate project with XcodeGen
+        script: |
+          which xcodegen || brew install xcodegen
+          xcodegen generate
+      - name: Build unsigned IPA
+        script: |
+          set -e
+          mkdir -p build
+          xcodebuild archive -project "$XCODE_PROJECT" -scheme "$XCODE_SCHEME" -configuration Release -destination 'generic/platform=iOS' -archivePath "$CM_BUILD_DIR/build/IPALocalizer.xcarchive" CODE_SIGN_IDENTITY="" CODE_SIGNING_REQUIRED=NO CODE_SIGNING_ALLOWED=NO
+          APP_PATH=$(find "$CM_BUILD_DIR/build/IPALocalizer.xcarchive/Products/Applications" -maxdepth 1 -name "*.app" | head -n 1)
+          mkdir -p "$CM_BUILD_DIR/build/Payload"
+          cp -R "$APP_PATH" "$CM_BUILD_DIR/build/Payload/"
+          cd "$CM_BUILD_DIR/build" && zip -qry IPALocalizer-unsigned.ipa Payload
+    artifacts:
+      - build/IPALocalizer-unsigned.ipa
